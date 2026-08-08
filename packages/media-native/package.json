@@ -1,0 +1,20 @@
+{
+  "name": "@headless-media/media-native",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-native": "*"
+  },
+  "dependencies": {
+    "@headless-media/media-core": "workspace:*"
+  }
+}
