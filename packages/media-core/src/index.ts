@@ -1,26 +1,33 @@
-export { MediaClient } from "./client/MediaClient";
+export {
+  MediaClient,
+} from "./client/MediaClient";
 
-export { MediaError } from "./errors/MediaError";
+export {
+  MediaError,
+} from "./errors/MediaError";
 
 export type {
   MediaErrorCode,
 } from "./errors/MediaError";
 
 export type {
-  MediaClientConfig,
-} from "./types/config";
-
-export type {
   MediaItem,
   MediaType,
+  MediaSource,
+  VideoFile,
+  VideoPicture,
 } from "./types/media";
 
 export type {
-  MediaResult,
-  Pagination,
   SearchParams,
   CuratedParams,
+  MediaResult,
+  Pagination,
 } from "./types/api";
+
+export type {
+  MediaClientConfig,
+} from "./types/config";
 
 export type {
   MediaEvents,

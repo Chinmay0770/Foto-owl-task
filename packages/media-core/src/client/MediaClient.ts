@@ -1,271 +1,339 @@
-import type { MediaClientConfig } from "../types/config";
-import type {
-  CuratedParams,
-  MediaResult,
-  SearchParams,
-} from "../types/api";
-import type { MediaEvents } from "../events/events";
-import { EventEmitter } from "../events/EventEmitter";
 import { RequestCache } from "../cache/RequestCache";
+import { EventEmitter } from "../events/EventEmitter";
+import type { MediaEvents } from "../events/events";
 import { MediaError } from "../errors/MediaError";
+import type {
+    CuratedParams,
+    MediaResult,
+    SearchParams,
+} from "../types/api";
+import type { MediaClientConfig } from "../types/config";
+import { PexelsApiClient } from "./PexelsApiClient";
+import {
+    mapPexelsPhoto,
+    mapPexelsPhotoResponse,
+    mapPexelsVideo,
+    mapPexelsVideoResponse
+} from "./pexelsMapper";
+import type {
+  MediaItem,
+  MediaType,
+} from "../types/media";
 
-const DEFAULT_BASE_URL = "https://api.pexels.com/v1";
+import type {
+  PexelsPhoto,
+  PexelsVideo,
+} from "../types/pexels";
+
 const DEFAULT_PER_PAGE = 20;
-const DEFAULT_TIMEOUT = 10_000;
 const DEFAULT_CACHE_TTL = 60_000;
 
 export class MediaClient {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
-  private readonly timeout: number;
+    private readonly api: PexelsApiClient;
 
-  private readonly cache: RequestCache;
+    private readonly cache: RequestCache;
 
-  private readonly events =
-    new EventEmitter<MediaEvents>();
+    private readonly events =
+        new EventEmitter<MediaEvents>();
 
-  private readonly pendingRequests =
-    new Map<string, Promise<unknown>>();
+    private readonly pendingRequests =
+        new Map<string, Promise<unknown>>();
 
-  constructor(config: MediaClientConfig) {
-    if (!config.apiKey) {
-      throw new MediaError(
-        "Pexels API key is required.",
-        {
-          code: "AUTHENTICATION_ERROR",
+    constructor(config: MediaClientConfig) {
+        this.api = new PexelsApiClient(config);
+
+        this.cache = new RequestCache(
+            config.cacheTtl ?? DEFAULT_CACHE_TTL
+        );
+    }
+
+    async search(
+        params: SearchParams
+    ): Promise<MediaResult> {
+        const query = params.query.trim();
+
+        if (!query) {
+            throw new MediaError(
+                "Search query cannot be empty.",
+                {
+                    code: "INVALID_REQUEST",
+                }
+            );
         }
-      );
+
+        const type =
+            params.type ?? "photo";
+
+        const page =
+            params.page ?? 1;
+
+        const perPage =
+            params.perPage ?? DEFAULT_PER_PAGE;
+
+        this.validatePagination(
+            page,
+            perPage
+        );
+
+        const cacheKey =
+            `search:${type}:${query}:${page}:${perPage}`;
+
+        return this.request(
+            cacheKey,
+            async () => {
+                if (type === "video") {
+                    const response =
+                        await this.api.get<
+                            import("../types/pexels").PexelsVideoSearchResponse
+                        >(
+                            "/videos/search",
+                            {
+                                query,
+                                page,
+                                per_page: perPage,
+                            }
+                        );
+
+                    return mapPexelsVideoResponse(
+                        response
+                    );
+                }
+
+                const response =
+                    await this.api.get<
+                        import("../types/pexels").PexelsPhotoSearchResponse
+                    >(
+                        "/search",
+                        {
+                            query,
+                            page,
+                            per_page: perPage,
+                        }
+                    );
+
+                return mapPexelsPhotoResponse(
+                    response
+                );
+            }
+        );
     }
 
-    this.apiKey = config.apiKey;
-    this.baseUrl =
-      config.baseUrl ?? DEFAULT_BASE_URL;
-    this.timeout =
-      config.timeout ?? DEFAULT_TIMEOUT;
+    async curated(
+        params: CuratedParams = {}
+    ): Promise<MediaResult> {
+        const type =
+            params.type ?? "photo";
 
-    this.cache = new RequestCache(
-      config.cacheTtl ?? DEFAULT_CACHE_TTL
-    );
-  }
+        const page =
+            params.page ?? 1;
 
-  on<K extends keyof MediaEvents>(
-    event: K,
-    listener: (payload: MediaEvents[K]) => void
-  ): () => void {
-    return this.events.on(event, listener);
-  }
+        const perPage =
+            params.perPage ?? DEFAULT_PER_PAGE;
 
-  trackView(
-    mediaId: number,
-    mediaType: "photo" | "video"
-  ): void {
-    const event = {
-      mediaId,
-      mediaType,
-      timestamp: Date.now(),
-    };
+        this.validatePagination(
+            page,
+            perPage
+        );
 
-    console.log("[media-core] view", event);
+        const cacheKey =
+            `curated:${type}:${page}:${perPage}`;
 
-    this.events.emit("view", event);
-  }
+        return this.request(
+            cacheKey,
+            async () => {
+                if (type === "video") {
+                    const response =
+                        await this.api.get<
+                            import("../types/pexels").PexelsVideoSearchResponse
+                        >(
+                            "/videos/popular",
+                            {
+                                page,
+                                per_page: perPage,
+                            }
+                        );
 
-  trackDownload(
-    mediaId: number,
-    mediaType: "photo" | "video"
-  ): void {
-    const event = {
-      mediaId,
-      mediaType,
-      timestamp: Date.now(),
-    };
+                    return mapPexelsVideoResponse(
+                        response
+                    );
+                }
 
-    console.log("[media-core] download", event);
+                const response =
+                    await this.api.get<
+                        import("../types/pexels").PexelsPhotoSearchResponse
+                    >(
+                        "/curated",
+                        {
+                            page,
+                            per_page: perPage,
+                        }
+                    );
 
-    this.events.emit("download", event);
-  }
+                return mapPexelsPhotoResponse(
+                    response
+                );
+            }
+        );
+    }
 
-  async search(
-    params: SearchParams
-  ): Promise<MediaResult> {
-    const page = params.page ?? 1;
-    const perPage =
-      params.perPage ?? DEFAULT_PER_PAGE;
-
-    const query = params.query.trim();
-
-    if (!query) {
-      throw new MediaError(
-        "Search query cannot be empty.",
-        {
-          code: "INVALID_REQUEST",
+    async getById(
+        id: number,
+        type: MediaType = "photo"
+    ): Promise<MediaItem> {
+        if (
+            !Number.isInteger(id) ||
+            id <= 0
+        ) {
+            throw new MediaError(
+                "Media ID must be a positive integer.",
+                {
+                    code: "INVALID_REQUEST",
+                }
+            );
         }
-      );
+
+        const cacheKey =
+            `media:${type}:${id}`;
+
+        return this.request(
+            cacheKey,
+            async () => {
+                if (type === "video") {
+                    const response =
+                        await this.api.get<PexelsVideo>(
+                            `/videos/videos/${id}`
+                        );
+
+                    return mapPexelsVideo(
+                        response
+                    );
+                }
+
+                const response =
+                    await this.api.get<PexelsPhoto>(
+                        `/photos/${id}`
+                    );
+
+                return mapPexelsPhoto(
+                    response
+                );
+            }
+        );
     }
 
-    return this.request<MediaResult>(
-      `/search?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`,
-      `search:${query}:${page}:${perPage}`
-    );
-  }
-
-  async curated(
-    params: CuratedParams = {}
-  ): Promise<MediaResult> {
-    const page = params.page ?? 1;
-    const perPage =
-      params.perPage ?? DEFAULT_PER_PAGE;
-
-    return this.request<MediaResult>(
-      `/curated?page=${page}&per_page=${perPage}`,
-      `curated:${page}:${perPage}`
-    );
-  }
-
-  private async request<T>(
-    path: string,
-    cacheKey: string
-  ): Promise<T> {
-    const cached =
-      this.cache.get<T>(cacheKey);
-
-    if (cached) {
-      return cached;
+    on<K extends keyof MediaEvents>(
+        event: K,
+        listener: (
+            payload: MediaEvents[K]
+        ) => void
+    ): () => void {
+        return this.events.on(
+            event,
+            listener
+        );
     }
 
-    const pending =
-      this.pendingRequests.get(cacheKey);
-
-    if (pending) {
-      return pending as Promise<T>;
-    }
-
-    const promise =
-      this.executeRequest<T>(path)
-        .then((result) => {
-          this.cache.set(cacheKey, result);
-          return result;
-        })
-        .finally(() => {
-          this.pendingRequests.delete(cacheKey);
+    trackView(
+        mediaId: number,
+        mediaType: "photo" | "video"
+    ): void {
+        this.events.emit("view", {
+            mediaId,
+            mediaType,
+            timestamp: Date.now(),
         });
+    }
 
-    this.pendingRequests.set(
-      cacheKey,
-      promise
-    );
+    trackDownload(
+        mediaId: number,
+        mediaType: "photo" | "video"
+    ): void {
+        this.events.emit("download", {
+            mediaId,
+            mediaType,
+            timestamp: Date.now(),
+        });
+    }
 
-    return promise;
-  }
+    clearCache(): void {
+        this.cache.clear();
+    }
 
-  private async executeRequest<T>(
-    path: string
-  ): Promise<T> {
-    const controller = new AbortController();
+    removeAllListeners(): void {
+        this.events.removeAllListeners();
+    }
 
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      this.timeout
-    );
+    private async request<T>(
+        cacheKey: string,
+        requestFn: () => Promise<T>
+    ): Promise<T> {
+        const cached =
+            this.cache.get<T>(cacheKey);
 
-    try {
-      const response = await fetch(
-        `${this.baseUrl}${path}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: this.apiKey,
-          },
-          signal: controller.signal,
+        if (cached !== undefined) {
+            return cached;
         }
-      );
 
-      if (!response.ok) {
-        throw this.createApiError(
-          response.status
+        const pending =
+            this.pendingRequests.get(
+                cacheKey
+            );
+
+        if (pending) {
+            return pending as Promise<T>;
+        }
+
+        const requestPromise =
+            requestFn()
+                .then((result) => {
+                    this.cache.set(
+                        cacheKey,
+                        result
+                    );
+
+                    return result;
+                })
+                .finally(() => {
+                    this.pendingRequests.delete(
+                        cacheKey
+                    );
+                });
+
+        this.pendingRequests.set(
+            cacheKey,
+            requestPromise
         );
-      }
 
-      return (await response.json()) as T;
-    } catch (error) {
-      if (error instanceof MediaError) {
-        throw error;
-      }
-
-      if (
-        error instanceof DOMException &&
-        error.name === "AbortError"
-      ) {
-        throw new MediaError(
-          "The request timed out.",
-          {
-            code: "TIMEOUT",
-            cause: error,
-          }
-        );
-      }
-
-      throw new MediaError(
-        "Failed to communicate with the media API.",
-        {
-          code: "NETWORK_ERROR",
-          cause: error,
-        }
-      );
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  }
-
-  private createApiError(
-    status: number
-  ): MediaError {
-    if (status === 401) {
-      return new MediaError(
-        "Invalid media API credentials.",
-        {
-          code: "AUTHENTICATION_ERROR",
-          status,
-        }
-      );
+        return requestPromise;
     }
 
-    if (status === 404) {
-      return new MediaError(
-        "Media resource was not found.",
-        {
-          code: "NOT_FOUND",
-          status,
+    private validatePagination(
+        page: number,
+        perPage: number
+    ): void {
+        if (
+            !Number.isInteger(page) ||
+            page < 1
+        ) {
+            throw new MediaError(
+                "Page must be a positive integer.",
+                {
+                    code: "INVALID_REQUEST",
+                }
+            );
         }
-      );
-    }
 
-    if (status === 429) {
-      return new MediaError(
-        "Media API rate limit exceeded.",
-        {
-          code: "RATE_LIMITED",
-          status,
+        if (
+            !Number.isInteger(perPage) ||
+            perPage < 1 ||
+            perPage > 80
+        ) {
+            throw new MediaError(
+                "perPage must be between 1 and 80.",
+                {
+                    code: "INVALID_REQUEST",
+                }
+            );
         }
-      );
     }
-
-    if (status >= 400 && status < 500) {
-      return new MediaError(
-        "Invalid media API request.",
-        {
-          code: "INVALID_REQUEST",
-          status,
-        }
-      );
-    }
-
-    return new MediaError(
-      "Media API request failed.",
-      {
-        code: "API_ERROR",
-        status,
-      }
-    );
-  }
 }

@@ -1,4 +1,4 @@
-import type { MediaItem } from "./media";
+import type { MediaItem, MediaType } from "./media";
 
 export interface Pagination {
   page: number;
@@ -14,11 +14,18 @@ export interface MediaResult {
 
 export interface SearchParams {
   query: string;
+  type?: MediaType;
   page?: number;
   perPage?: number;
 }
 
 export interface CuratedParams {
+  type?: MediaType;
   page?: number;
   perPage?: number;
+}
+
+export interface GetByIdParams {
+  id: number;
+  type: MediaType;
 }
