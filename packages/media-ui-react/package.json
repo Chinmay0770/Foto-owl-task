@@ -7,8 +7,9 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "build": "tsc && shx mkdir -p dist/styles && shx cp src/styles/index.css dist/styles/index.css",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest"
   },
   "peerDependencies": {
     "@headless-media/media-core": "workspace:*",
@@ -19,6 +20,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
+    "shx": "^0.4.0",
     "vitest": "^4.1.10"
   }
 }
