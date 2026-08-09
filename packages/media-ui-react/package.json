@@ -11,9 +11,14 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@headless-media/media-core": "workspace:*",
     "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
-    "@types/react": "^19.2.18"
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^19.2.18",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.10"
   }
 }
