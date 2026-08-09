@@ -207,6 +207,9 @@ importers:
 
   .:
     devDependencies:
+      '@types/react':
+        specifier: ^19.2.18
+        version: 19.2.18
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
@@ -296,11 +299,14 @@ importers:
 
   packages/media-ui-native:
     dependencies:
+      '@headless-media/media-core':
+        specifier: workspace:*
+        version: link:../media-core
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.8
       react-native:
-        specifier: '*'
+        specifier: '>=0.73.0'
         version: 0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.8)(supports-color@8.1.1)
 
   packages/media-ui-react:
