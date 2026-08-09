@@ -10,5 +10,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10"
   }
 }
