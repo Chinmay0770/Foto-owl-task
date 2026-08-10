@@ -10,7 +10,10 @@
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.0",
     "@types/react": "^19.2.18",
+    "@vitejs/plugin-react": "^6.0.5",
+    "jsdom": "^30.0.1",
     "typescript": "~6.0.3"
   }
 }

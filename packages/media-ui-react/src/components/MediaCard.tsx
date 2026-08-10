@@ -1,90 +1,74 @@
 import React from "react";
-import type { MediaCardProps } from "../types/components";
+import type {
+  MediaCardProps,
+} from "../types/components";
 
 export function MediaCard({
   media,
   onClick,
-  onDownload,
   className = "",
 }: MediaCardProps) {
-  const handleClick =
-    () => {
-      onClick?.(media);
-    };
-
-  const handleDownload =
-    (
-      event: React.MouseEvent<HTMLButtonElement>
-    ) => {
-      event.stopPropagation();
-
-      onDownload?.(media);
-    };
+  const imageSrc =
+    media.type === "video"
+      ? media.videoPictures?.[0]
+          ?.picture ??
+        media.src?.large ??
+        media.src?.medium ??
+        media.url
+      : media.src?.large ??
+        media.src?.medium ??
+        media.src?.original ??
+        media.url;
 
   return (
     <article
       className={`media-card ${className}`}
-      onClick={handleClick}
     >
-      <div className="media-card__media">
-        {media.type ===
-        "video" ? (
-          <video
-            src={
-              media.videoFiles?.[0]
-                ?.link
-            }
-            poster={
-              media.src?.original
-            }
-            controls
-            preload="metadata"
-          />
-        ) : (
+      <button
+        type="button"
+        className="media-card__button"
+        onClick={() =>
+          onClick?.(media)
+        }
+      >
+        <div className="media-card__media">
           <img
-            src={
-              media.src?.large ??
-              media.src?.medium ??
-              media.url
-            }
+            src={imageSrc}
             alt={
               media.alt ??
-              `Photo by ${
+              `Media by ${
                 media.photographer ??
-                "Unknown"
+                "Unknown creator"
               }`
             }
             loading="lazy"
           />
-        )}
-      </div>
 
-      <div className="media-card__content">
-        <p className="media-card__author">
-          {media.photographer ??
-            "Unknown creator"}
-        </p>
-
-        {media.type ===
-          "video" &&
-          media.duration !==
-            undefined && (
-            <span>
-              {media.duration}s
+          {media.type === "video" && (
+            <span
+              className="media-card__play"
+              aria-hidden="true"
+            >
+              ▶
             </span>
           )}
+        </div>
 
-        {onDownload && (
-          <button
-            type="button"
-            onClick={
-              handleDownload
-            }
-          >
-            Download
-          </button>
-        )}
-      </div>
+        <div className="media-card__content">
+          <p>
+            {media.photographer ??
+              "Unknown creator"}
+          </p>
+
+          {media.type === "video" &&
+            media.duration !==
+              undefined && (
+              <span>
+                {media.duration}s
+              </span>
+            )}
+        </div>
+      </button>
     </article>
   );
 }

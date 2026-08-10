@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@headless-media/media-core": "workspace:*",
+    "@headless-media/media-react": "workspace:*",
     "@headless-media/media-ui-react": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

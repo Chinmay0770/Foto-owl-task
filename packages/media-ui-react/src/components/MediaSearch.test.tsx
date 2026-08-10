@@ -1,486 +1,99 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 
-import { MediaSearch } from "./MediaSearch";
-import "@testing-library/jest-dom";
+import { MediaSearch } from './MediaSearch';
+import React from 'react';
 
-import type {
-  MediaClient,
-  MediaResult,
-} from "@headless-media/media-core";
-import React from "react";
+describe('MediaSearch', () => {
+  it('renders the search input and button', () => {
+    render(<MediaSearch />);
 
-const mockResult: MediaResult = {
-  items: [
-    {
-      id: 123,
-      type: "photo",
-      width: 1920,
-      height: 1080,
-      url: "https://example.com/photo/123",
-      photographer: "John Doe",
-      photographerUrl:
-        "https://example.com/john",
-      src: {
-        original:
-          "https://example.com/photo-original.jpg",
-        large:
-          "https://example.com/photo-large.jpg",
-        medium:
-          "https://example.com/photo-medium.jpg",
-      },
-      alt: "Mountain landscape",
-    },
-  ],
-  pagination: {
-    page: 1,
-    perPage: 20,
-    totalResults: 1,
-    hasNextPage: false,
-  },
-};
-
-function createMockClient() {
-  return {
-    search: vi.fn(),
-    trackView: vi.fn(),
-  } as unknown as MediaClient;
-}
-
-describe("MediaSearch", () => {
-  let client: MediaClient;
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-
-    client = createMockClient();
-  });
-
-  it("renders the search input and button", () => {
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
+    expect(screen.getByLabelText('Search media')).toBeInTheDocument();
     expect(
-      screen.getByLabelText(
-        "Search media"
-      )
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
+      screen.getByRole('button', { name: /search/i })
     ).toBeInTheDocument();
   });
 
-  it("disables search when query is empty", () => {
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
+  it('renders photo, video and both options', () => {
+    render(<MediaSearch />);
 
-    expect(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
-    ).toBeDisabled();
+    expect(screen.getByLabelText('Photos')).toBeInTheDocument();
+    expect(screen.getByLabelText('Videos')).toBeInTheDocument();
+    expect(screen.getByLabelText(/both/i)).toBeInTheDocument();
   });
 
-  it("searches when the form is submitted", async () => {
-    vi.mocked(
-      client.search
-    ).mockResolvedValue(
-      mockResult
-    );
+  it('defaults to photos', () => {
+    render(<MediaSearch />);
 
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
-    const input =
-      screen.getByLabelText(
-        "Search media"
-      );
-
-    fireEvent.change(
-      input,
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
-
-    fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
-    );
-
-    await waitFor(() => {
-      expect(
-        client.search
-      ).toHaveBeenCalledWith({
-        query: "mountains",
-        type: "photo",
-        page: 1,
-        perPage: 20,
-      });
-    });
+    expect(screen.getByLabelText('Photos')).toBeChecked();
+    expect(screen.getByLabelText('Videos')).not.toBeChecked();
   });
 
-  it("displays search results", async () => {
-    vi.mocked(
-      client.search
-    ).mockResolvedValue(
-      mockResult
-    );
+  it('uses the provided media type', () => {
+    render(<MediaSearch type="video" />);
+
+    expect(screen.getByLabelText('Videos')).toBeChecked();
+    expect(screen.getByLabelText('Photos')).not.toBeChecked();
+  });
+
+  it('calls onTypeChange when videos are selected', () => {
+    const onTypeChange = vi.fn();
 
     render(
       <MediaSearch
-        client={client}
+        type="photo"
+        onTypeChange={onTypeChange}
       />
     );
 
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
+    fireEvent.click(screen.getByLabelText('Videos'));
 
-    fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
-    );
-
-    expect(
-      await screen.findByAltText(
-        "Mountain landscape"
-      )
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByText(
-        "John Doe"
-      )
-    ).toBeInTheDocument();
+    expect(onTypeChange).toHaveBeenCalledWith('video');
   });
 
-  it("displays an empty state when no results are returned", async () => {
-    vi.mocked(
-      client.search
-    ).mockResolvedValue({
-      items: [],
-      pagination: {
-        page: 1,
-        perPage: 20,
-        totalResults: 0,
-        hasNextPage: false,
-      },
+  it('calls onSearch with the entered query', () => {
+    const onSearch = vi.fn();
+
+    render(<MediaSearch onSearch={onSearch} />);
+
+    const input = screen.getByLabelText('Search media');
+
+    fireEvent.change(input, {
+      target: { value: 'nature' },
     });
 
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "something-that-does-not-exist",
-        },
-      }
-    );
-
     fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
+      screen.getByRole('button', { name: /search/i })
     );
 
-    expect(
-      await screen.findByText(
-        'No media found for "something-that-does-not-exist".'
-      )
-    ).toBeInTheDocument();
+    expect(onSearch).toHaveBeenCalledWith('nature');
   });
 
-  it("displays an error state when search fails", async () => {
-    vi.mocked(
-      client.search
-    ).mockRejectedValue(
-      new Error(
-        "Failed to fetch media"
-      )
-    );
+  it('does not search an empty query', () => {
+    const onSearch = vi.fn();
 
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
+    render(<MediaSearch onSearch={onSearch} />);
 
     fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
+      screen.getByRole('button', { name: /search/i })
     );
 
-    expect(
-      await screen.findByText(
-        "Failed to fetch media"
-      )
-    ).toBeInTheDocument();
-
-    expect(
-      screen.getByRole(
-        "button",
-        {
-          name: "Retry",
-        }
-      )
-    ).toBeInTheDocument();
+    expect(onSearch).not.toHaveBeenCalled();
   });
 
-  it("retries the search when Retry is clicked", async () => {
-    vi.mocked(
-      client.search
-    )
-      .mockRejectedValueOnce(
-        new Error(
-          "Temporary failure"
-        )
-      )
-      .mockResolvedValueOnce(
-        mockResult
-      );
+  it('trims the search query', () => {
+    const onSearch = vi.fn();
 
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
+    render(<MediaSearch onSearch={onSearch} />);
 
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
-
-    fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
-    );
-
-    const retryButton =
-      await screen.findByRole(
-        "button",
-        {
-          name: "Retry",
-        }
-      );
-
-    fireEvent.click(
-      retryButton
-    );
-
-    await waitFor(() => {
-      expect(
-        client.search
-      ).toHaveBeenCalledTimes(2);
+    fireEvent.change(screen.getByLabelText('Search media'), {
+      target: { value: '  nature  ' },
     });
 
-    expect(
-      await screen.findByAltText(
-        "Mountain landscape"
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("requests the next page", async () => {
-    vi.mocked(
-      client.search
-    )
-      .mockResolvedValueOnce(
-        {
-          ...mockResult,
-          pagination: {
-            page: 1,
-            perPage: 20,
-            totalResults: 40,
-            hasNextPage: true,
-          },
-        }
-      )
-      .mockResolvedValueOnce(
-        {
-          ...mockResult,
-          pagination: {
-            page: 2,
-            perPage: 20,
-            totalResults: 40,
-            hasNextPage: false,
-          },
-        }
-      );
-
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
-
     fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
+      screen.getByRole('button', { name: /search/i })
     );
 
-    await screen.findByAltText(
-      "Mountain landscape"
-    );
-
-    fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Next",
-        }
-      )
-    );
-
-    await waitFor(() => {
-      expect(
-        client.search
-      ).toHaveBeenLastCalledWith({
-        query: "mountains",
-        type: "photo",
-        page: 2,
-        perPage: 20,
-      });
-    });
-  });
-
-  it("tracks a media view when a result is clicked", async () => {
-    vi.mocked(
-      client.search
-    ).mockResolvedValue(
-      mockResult
-    );
-
-    render(
-      <MediaSearch
-        client={client}
-      />
-    );
-
-    fireEvent.change(
-      screen.getByLabelText(
-        "Search media"
-      ),
-      {
-        target: {
-          value: "mountains",
-        },
-      }
-    );
-
-    fireEvent.click(
-      screen.getByRole(
-        "button",
-        {
-          name: "Search",
-        }
-      )
-    );
-
-    const image =
-      await screen.findByAltText(
-        "Mountain landscape"
-      );
-
-    fireEvent.click(
-      image
-    );
-
-    expect(
-      client.trackView
-    ).toHaveBeenCalledWith(
-      123,
-      "photo"
-    );
+    expect(onSearch).toHaveBeenCalledWith('nature');
   });
 });

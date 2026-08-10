@@ -1,27 +1,33 @@
 import {
-    useEffect,
     useState,
 } from "react";
-import type { FormEvent } from "react";
 
-import type { MediaSearchProps } from "../types/components";
+import type {
+    FormEvent,
+} from "react";
 
-import { useMediaSearch } from "../hooks/useMediaSearch";
+import type {
+    MediaSearchProps,
+    MediaSearchType,
+} from "../types/components";
 
 import { MediaGrid } from "./MediaGrid";
-import { MediaPagination } from "./MediaPagination";
 import { LoadingState } from "./LoadingState";
 import { ErrorState } from "./ErrorState";
 import { EmptyState } from "./EmptyState";
 import React from "react";
 
 export function MediaSearch({
-    client,
     initialQuery = "",
     type = "photo",
-    perPage = 20,
-    onResults,
-    onError,
+    items = [],
+    loading = false,
+    error = null,
+    hasNextPage = false,
+    onSearch,
+    onTypeChange,
+    onLoadMore,
+    onMediaClick,
     className = "",
 }: MediaSearchProps) {
     const [
@@ -29,49 +35,27 @@ export function MediaSearch({
         setInput,
     ] = useState(initialQuery);
 
-    const media = useMediaSearch({
-        client,
-        initialQuery,
-        type,
-        perPage,
-    });
-
-    useEffect(() => {
-        if (media.result) {
-            onResults?.(
-                media.result
-            );
-        }
-    }, [
-        media.result,
-        onResults,
-    ]);
-
-    useEffect(() => {
-        if (media.error) {
-            onError?.(
-                media.error
-            );
-        }
-    }, [
-        media.error,
-        onError,
-    ]);
-
-    const errorMessage =
-        media.error instanceof Error
-            ? media.error.message
-            : String(media.error);
-
     const handleSubmit = (
-        event: FormEvent
+        event: FormEvent<HTMLFormElement>
     ) => {
         event.preventDefault();
 
-        void media.search(
-            input
-        );
+        const query =
+            input.trim();
+
+        if (!query) {
+            return;
+        }
+
+        void onSearch?.(query);
     };
+
+    const errorMessage =
+        error instanceof Error
+            ? error.message
+            : error != null
+                ? String(error)
+                : "";
 
     return (
         <section
@@ -79,13 +63,9 @@ export function MediaSearch({
         >
             <form
                 className="media-search__form"
-                onSubmit={
-                    handleSubmit
-                }
+                onSubmit={handleSubmit}
             >
-                <label
-                    htmlFor="media-search-input"
-                >
+                <label htmlFor="media-search-input">
                     Search media
                 </label>
 
@@ -98,90 +78,111 @@ export function MediaSearch({
                                 event.target.value
                             )
                         }
-                        placeholder="Search photos..."
+                        placeholder="Search media..."
                     />
 
                     <button
                         type="submit"
                         disabled={
-                            media.loading ||
+                            loading ||
                             !input.trim()
                         }
                     >
                         Search
                     </button>
                 </div>
+
+                <fieldset>
+                    <legend>
+                        Media type
+                    </legend>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="media-type"
+                            checked={
+                                type === "photo"
+                            }
+                            onChange={() =>
+                                onTypeChange?.(
+                                    "photo"
+                                )
+                            }
+                        />
+                        Photos
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="media-type"
+                            checked={
+                                type === "video"
+                            }
+                            onChange={() =>
+                                onTypeChange?.(
+                                    "video"
+                                )
+                            }
+                        />
+                        Videos
+                    </label>
+
+                    <label>
+                        <input
+                            type="radio"
+                            name="media-type"
+                            value="both"
+                            aria-label="Both photos and videos"
+                            checked={type === "both"}
+                            onChange={() => onTypeChange?.("both")}
+                        />
+                        Photos & Videos
+                    </label>
+                </fieldset>
             </form>
 
-            {media.loading && (
-                <LoadingState />
-            )}
+            {loading &&
+                items.length === 0 && (
+                    <LoadingState />
+                )}
 
-            {!media.loading &&
-                media.error != null && (
+            {!loading &&
+                error != null && (
                     <ErrorState
                         error={errorMessage}
                         onRetry={() =>
-                            void media.search()
+                            void onSearch?.(
+                                input.trim()
+                            )
                         }
                     />
                 )}
 
-            {!media.loading &&
-                !media.error &&
-                media.items.length ===
-                0 && (
+            {!loading &&
+                error == null &&
+                items.length === 0 && (
                     <EmptyState
-                        query={
-                            media.query
-                        }
+                        query={input}
                     />
                 )}
 
-            {!media.error &&
-                media.items.length >
-                0 && (
-                    <>
-                        <MediaGrid
-                            items={
-                                media.items
-                            }
-                            onMediaClick={(
-                                item
-                            ) => {
-                                client.trackView(
-                                    item.id,
-                                    item.type
-                                );
-                            }}
-                        />
-
-                        {media.result && (
-                            <MediaPagination
-                                page={
-                                    media.result
-                                        .pagination
-                                        .page
-                                }
-                                hasNextPage={
-                                    media.result
-                                        .pagination
-                                        .hasNextPage
-                                }
-                                loading={
-                                    media.loading
-                                }
-                                onPageChange={(
-                                    page
-                                ) =>
-                                    void media.setPage(
-                                        page
-                                    )
-                                }
-                            />
-                        )}
-                    </>
-                )}
+            {items.length > 0 && (
+                <MediaGrid
+                    items={items}
+                    loading={loading}
+                    hasNextPage={
+                        hasNextPage
+                    }
+                    onLoadMore={
+                        onLoadMore
+                    }
+                    onMediaClick={
+                        onMediaClick
+                    }
+                />
+            )}
         </section>
     );
 }

@@ -1,3 +1,5 @@
+import "./styles/index.css";
+
 export {
   MediaSearch,
 } from "./components/MediaSearch";
@@ -11,10 +13,6 @@ export {
 } from "./components/MediaCard";
 
 export {
-  MediaPagination,
-} from "./components/MediaPagination";
-
-export {
   LoadingState,
 } from "./components/LoadingState";
 
@@ -26,15 +24,11 @@ export {
   EmptyState,
 } from "./components/EmptyState";
 
-export {
-  useMediaSearch,
-} from "./hooks/useMediaSearch";
-
 export type {
+  MediaDisplayItem,
+  MediaDisplayType,
+  MediaSearchType,
   MediaSearchProps,
   MediaGridProps,
   MediaCardProps,
 } from "./types/components";
-
-// @ts-ignore: side-effect CSS import handled by bundler
-import "./styles/index.css";

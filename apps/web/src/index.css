@@ -8,10 +8,13 @@
     "Segoe UI",
     sans-serif;
 
-  color: #111827;
-  background: #f8fafc;
+  color: #17151c;
+  background: #f4f0fa;
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 * {
@@ -30,8 +33,21 @@ body {
 }
 
 button,
-input {
+input,
+textarea,
+select {
   font: inherit;
-  border-radius: 10px;
-  border-color: black;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+#root {
+  min-height: 100vh;
 }
